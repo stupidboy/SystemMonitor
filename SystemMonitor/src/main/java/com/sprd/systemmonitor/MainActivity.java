@@ -1,5 +1,6 @@
 package com.sprd.systemmonitor;
 
+import android.content.Intent;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.ActionBarActivity;
@@ -15,10 +16,10 @@ import android.os.Build;
 
 
 public class MainActivity extends ActionBarActivity {
-    DeviceInfoStat mInfo = null;
 
-    Handler mHandler;
 
+
+    Intent  mStartServiceIntent = new Intent("sprdmonitor.startMonitorService");
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -29,18 +30,12 @@ public class MainActivity extends ActionBarActivity {
                     .add(R.id.container, new PlaceholderFragment())
                     .commit();
         }
-        mHandler = new Handler() {
 
-            @Override
-            public void handleMessage(Message msg) {
-                super.handleMessage(msg);
-            }
-        };
-        if (mInfo == null) {
-            mInfo = new DeviceInfoStat(this.getApplicationContext(), mHandler);
-        }
+
         //mInfo.dump();
-        mInfo.startMonitor();
+        this.startService(mStartServiceIntent);
+       // mInfo.startMonitor();
+       // mCpuInfo.startMonitor();
     }
 
 
@@ -67,7 +62,6 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        mInfo.stopMonitor();
     }
 
     /**

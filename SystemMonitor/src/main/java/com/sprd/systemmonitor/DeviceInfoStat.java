@@ -3,6 +3,7 @@ package com.sprd.systemmonitor;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
@@ -92,7 +93,7 @@ softirq.
     static long    MONITOR_DELAY = 1000;//ms
     static final int CPU_INFO_NUMBS = 7;
     static final long  INITAL_VALUE = 0;
-
+    private static final int  MSG_UPDATE_DEVICEINFO = 1;
     private byte [] mBuff = new byte[5*1048];
     private Context mContext;
     private Handler mMainHandler;
@@ -136,14 +137,14 @@ softirq.
     */
     //cpu freq
     private String mCpuFreq;
+    private DeviceInfo mDeviceInfo;
 
 
 
 
 
 
-
-    class VmstatInfo{
+     class VmstatInfo{
         private long mRunningProcesses  ;
         private long mBlockedProcesses ;
         private long mProcesses ;
@@ -204,13 +205,13 @@ softirq.
         }
         public String genResult(VmstatInfo info){
 
-            return "R"+fixValue(mRunningProcesses-info.mRunningProcesses)+"B:"+fixValue(mBlockedProcesses - info.mBlockedProcesses)+"CPU_USER:"
-                    +fixValue(mCpuUser - info.mCpuUser)+"CPU_IDLE:"+fixValue(mCpuIdle - info.mCpuIdle)+"CPU_WAIT:"+fixValue(mCpuWait - info.mCpuWait)
-                    +"PGFLT:"+fixValue(mPageFlt - info.mPageFlt);
+            return "R:"+fixValue(mRunningProcesses-info.mRunningProcesses)+"B:"+fixValue(mBlockedProcesses - info.mBlockedProcesses)+"Usr:"
+                    +fixValue(mCpuUser - info.mCpuUser)+"Sys:"+fixValue(mCpuSystem -info.mCpuSystem)+"Idle:"+fixValue(mCpuIdle - info.mCpuIdle)+"Wait:"+fixValue(mCpuWait - info.mCpuWait)
+                    +"Flt:"+(mPageFlt - info.mPageFlt);
         }
     };
 
-    class MemInfo{
+     class MemInfo{
         private String mMemTotal ;
         private String mMemFree ;
         private String mMemMapped ;
@@ -237,7 +238,27 @@ softirq.
             mMemSlab = "";
             mMemSwapCache = "";
         }
+         public String genMemStat(){
+             return "Total:"+mMemTotal+" Free:"+mMemFree+" Cache:"+mMemCache+" Buff:"+mMemBuff;
+         }
     };
+    public class DeviceInfo{
+        private MemInfo mMeminfo;
+        private VmstatInfo mVmInfo;
+        private VmstatInfo mOldVminfo;
+
+        public DeviceInfo(MemInfo meminfo,VmstatInfo vminfo ,VmstatInfo oldInfo){
+            mMeminfo = meminfo;
+            mVmInfo = vminfo;
+            mOldVminfo = oldInfo;
+        }
+        public String genVmstat(){
+            return  mVmInfo.genResult(mOldVminfo);
+        }
+        public String genMemStat(){
+            return mMeminfo.genMemStat();
+        }
+    }
     public DeviceInfoStat(Context context,Handler handler){
         mContext = context;
         mMainHandler = handler;
@@ -248,6 +269,7 @@ softirq.
         mVmstatInfo = new VmstatInfo();
         mOldVmstatInfo = new VmstatInfo();
         mMeminfo = new MemInfo();
+        mDeviceInfo = new DeviceInfo(mMeminfo,mVmstatInfo,mOldVmstatInfo);
         checkReadPerm();
     }
     boolean checkReadPerm(){
@@ -291,6 +313,8 @@ softirq.
                         mVmstatInfo.mPageFlt = Long.parseLong(value.replace("pgmajfault","").trim());
                     }
                 }
+                reader.close();
+                fis.close();
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -336,11 +360,14 @@ softirq.
                         mVmstatInfo.mBlockedProcesses = Long.parseLong( value.replace("procs_blocked","").trim());
                     }
                 }
-
+                read.close();
+                fis.close();
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();
+            }finally {
+
             }
 
         }
@@ -378,6 +405,8 @@ softirq.
                     mMeminfo.mMemAnon = value.replace("AnonPages:","").trim();
                 }
             }
+            read.close();
+            fis.close();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -400,10 +429,16 @@ softirq.
         Log.e(TAG,mVmstatInfo.genResult(mOldVmstatInfo));
 
     }
+    private void sendUpdateMessage(){
+        Message msg =new Message();
+        msg.what = MSG_UPDATE_DEVICEINFO;
+        msg.obj = mDeviceInfo;
+        mMainHandler.sendMessage(msg);
+    }
     class MonitorThread  extends Thread{
 
         public MonitorThread() {
-            super();
+            super("vmstat");
         }
 
         @Override
@@ -412,6 +447,7 @@ softirq.
                 //do update
                 Log.d(TAG, "update........");
                 updateCurrentStat();
+                sendUpdateMessage();
                 try{
                     sleep(MONITOR_DELAY);
                 }catch (Exception e){}

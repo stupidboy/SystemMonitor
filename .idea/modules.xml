@@ -2,9 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/SystemMonitor/SystemMonitor.iml" filepath="$PROJECT_DIR$/SystemMonitor/SystemMonitor.iml" />
       <module fileurl="file://$PROJECT_DIR$/SystemMonitorProject.iml" filepath="$PROJECT_DIR$/SystemMonitorProject.iml" />
     </modules>
   </component>
 </project>
-
